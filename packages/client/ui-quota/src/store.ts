@@ -58,6 +58,20 @@ async function wireCall(method: 'quota/snapshot' | 'quota/refresh', args: Record
   return body.result.value
 }
 
+/**
+ * Typed namespace calls resolve to the RemoteResult envelope
+ * `{ ok: true, value } | { ok: false, error }`, not the bare business value
+ * (see ClientRemoteService.invoke). Unwrap it or throw the remote failure.
+ */
+function unwrapRemote(result: unknown): QuotaSnapshot {
+  if (result !== null && typeof result === 'object' && 'ok' in result) {
+    const envelope = result as { ok: boolean; value?: QuotaSnapshot; error?: { code?: string; message?: string } }
+    if (envelope.ok === true && envelope.value !== undefined) return envelope.value
+    throw new Error(envelope.error?.message ?? 'remote call failed')
+  }
+  return result as QuotaSnapshot
+}
+
 export function createQuotaStore(getNamespace: NamespaceAccessor): QuotaStore {
   let snapshot: QuotaSnapshot | undefined
   let status: QuotaStatus = { kind: 'loading' }
@@ -75,7 +89,9 @@ export function createQuotaStore(getNamespace: NamespaceAccessor): QuotaStore {
   const call = (method: 'quota/snapshot' | 'quota/refresh', providerId?: string): Promise<QuotaSnapshot> => {
     const namespace = getNamespace()
     if (namespace) {
-      return method === 'quota/snapshot' ? namespace.snapshot() : namespace.refresh(providerId)
+      return method === 'quota/snapshot'
+        ? namespace.snapshot().then(unwrapRemote)
+        : namespace.refresh(providerId).then(unwrapRemote)
     }
     return wireCall(method, providerId === undefined ? {} : { providerId })
   }
