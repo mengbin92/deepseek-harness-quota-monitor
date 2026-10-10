@@ -154,6 +154,9 @@ dsh plugin --profile web add "$(pwd)"
 | `pinned: true` | 侧栏指示器固定显示该供应商（缺省显示状态最差的一行） |
 | `hidden: true` | 彻底隐藏：不抓取、不出现在页面和侧栏（适合 `none` 占位行） |
 | `enabled: false` | 保留卡片但停止抓取，显示"已停用" |
+| `llmProviders: [neo, ...]` | 声明本行对应的 LLM 供应商 key：当前会话使用的模型属于这些供应商时，侧栏指示器自动聚焦本行，页面卡片带"使用中"徽标 |
+
+**显示聚焦优先级**（侧栏指示器）：使用中（`llmProviders` 匹配当前模型供应商）→ `pinned` → 状态最差的一行。LLM 供应商 key 即 `llm-pi-ai` 等适配器配置里的 provider 名（如 `neo`、`kimi-coding`）。
 
 `warnThreshold` 语义：对余额表示"剩余 ≤ 阈值 → 告警"，对窗口限额表示"用量 ≥ 阈值% → 告警"。
 

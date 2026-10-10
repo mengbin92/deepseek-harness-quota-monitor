@@ -43,6 +43,7 @@ const providerQuotaSchema = () =>
     error: z.string().optional(),
     warnThreshold: z.number().optional(),
     pinned: z.boolean().optional(),
+    llmProviders: z.array(z.string()).optional(),
     stale: z.boolean().optional(),
     fetchedAt: z.number().optional(),
   })
@@ -156,7 +157,7 @@ export const TYPERT = {
           {
             name: 'ProviderQuota',
             declaration:
-              "export interface ProviderQuota { id: string; label: string; state: 'ok' | 'warn' | 'error' | 'unsupported' | 'pending' | 'disabled'; balances: BalanceInfo[]; limits: LimitInfo[]; error?: string; warnThreshold?: number; stale?: boolean; fetchedAt?: number }",
+              "export interface ProviderQuota { id: string; label: string; state: 'ok' | 'warn' | 'error' | 'unsupported' | 'pending' | 'disabled'; balances: BalanceInfo[]; limits: LimitInfo[]; error?: string; warnThreshold?: number; pinned?: boolean; llmProviders?: string[]; stale?: boolean; fetchedAt?: number }",
           },
           {
             name: 'QuotaSnapshot',

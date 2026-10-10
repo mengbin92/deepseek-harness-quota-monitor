@@ -7,16 +7,19 @@
 import React from 'react'
 import type { QuotaSnapshot } from 'dsh-quota-monitor/types'
 import type { QuotaStore } from './store.js'
+import type { ActiveProviderTracker } from './active-provider.js'
 import { balanceLine, formatResetCountdown, limitRemaining, remainingTone, stateColor, stateKey, toneColor, type Translate } from './view.js'
 
 export interface QuotaSectionProps {
   store: QuotaStore
   t: Translate
+  activeProvider: ActiveProviderTracker
 }
 
-export function QuotaSection({ store, t }: QuotaSectionProps): React.JSX.Element {
+export function QuotaSection({ store, t, activeProvider }: QuotaSectionProps): React.JSX.Element {
   const [snapshot, setSnapshot] = React.useState<QuotaSnapshot | undefined>(() => store.getSnapshot())
   const [status, setStatus] = React.useState(() => store.getStatus())
+  const [provider, setProvider] = React.useState<string | undefined>(() => activeProvider.getProvider())
   const [refreshing, setRefreshing] = React.useState<string | 'all' | undefined>()
   const [now, setNow] = React.useState(() => Date.now())
 
@@ -28,6 +31,7 @@ export function QuotaSection({ store, t }: QuotaSectionProps): React.JSX.Element
       }),
     [store],
   )
+  React.useEffect(() => activeProvider.subscribe(() => setProvider(activeProvider.getProvider())), [activeProvider])
   React.useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(timer)
@@ -86,7 +90,24 @@ export function QuotaSection({ store, t }: QuotaSectionProps): React.JSX.Element
               aria-hidden
               style={{ width: 8, height: 8, borderRadius: '50%', background: stateColor(row.state), flexShrink: 0 }}
             />
-            <strong style={{ flex: 1 }}>{row.label}</strong>
+            <strong style={{ flex: 1 }}>
+              {row.label}
+              {provider !== undefined && row.llmProviders?.includes(provider) && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'var(--dsh-accent, #3b82f6)',
+                    border: '1px solid var(--dsh-accent, #3b82f6)',
+                    borderRadius: 4,
+                    padding: '0 4px',
+                  }}
+                >
+                  {t('inUse')}
+                </span>
+              )}
+            </strong>
             <span style={{ color: stateColor(row.state), fontSize: 12 }}>
               {t(stateKey(row.state))}
               {row.stale ? t('stale') : ''}

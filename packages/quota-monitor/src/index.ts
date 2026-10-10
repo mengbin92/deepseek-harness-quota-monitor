@@ -37,6 +37,7 @@ interface ProviderConfig {
   hidden?: boolean
   order?: number
   pinned?: boolean
+  llmProviders?: string[]
   baseURL?: string
   warnThreshold?: number
   [key: string]: unknown
@@ -80,6 +81,7 @@ export class QuotaMonitor extends TypertRemoteService {
           hidden: z.boolean().default(false).description('Set true to drop the provider from snapshots entirely (no card, no sidebar entry, no fetching).'),
           order: z.number().description('Card ordering on the quota page; lower sorts first, ties keep config order.'),
           pinned: z.boolean().default(false).description('Prefer this provider for the sidebar indicator instead of the worst-state row.'),
+          llmProviders: z.array(z.string()).description('LLM provider keys (from the session model selection) this row answers for; the UI surfaces the row matching the model currently in use.'),
           baseURL: z.string().description('Provider endpoint base URL.'),
           warnThreshold: z.number().description('Warn when any balance drops to or below this amount, or any limit window reaches this percent.'),
         }).loose(),
@@ -169,6 +171,7 @@ export class QuotaMonitor extends TypertRemoteService {
     }
     if (provider.warnThreshold !== undefined) base.warnThreshold = provider.warnThreshold
     if (provider.pinned === true) base.pinned = true
+    if (provider.llmProviders !== undefined) base.llmProviders = provider.llmProviders
     if (provider.enabled === false) base.state = 'disabled'
     else if ((provider.fetcher ?? 'deepseek-balance') === 'none') base.state = 'unsupported'
     return base
@@ -218,6 +221,7 @@ export class QuotaMonitor extends TypertRemoteService {
       }
       if (provider.warnThreshold !== undefined) row.warnThreshold = provider.warnThreshold
       if (provider.pinned === true) row.pinned = true
+      if (provider.llmProviders !== undefined) row.llmProviders = provider.llmProviders
       this.store(row)
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught)
@@ -233,6 +237,7 @@ export class QuotaMonitor extends TypertRemoteService {
       if (previous?.fetchedAt !== undefined) row.fetchedAt = previous.fetchedAt
       if (provider.warnThreshold !== undefined) row.warnThreshold = provider.warnThreshold
       if (provider.pinned === true) row.pinned = true
+      if (provider.llmProviders !== undefined) row.llmProviders = provider.llmProviders
       this.store(row)
     } finally {
       clearTimeout(timeout)

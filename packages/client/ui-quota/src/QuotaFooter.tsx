@@ -8,11 +8,13 @@
 import React from 'react'
 import type { QuotaSnapshot, ProviderQuota } from 'dsh-quota-monitor/types'
 import type { QuotaStore } from './store.js'
+import type { ActiveProviderTracker } from './active-provider.js'
 import { rowSummary, stateColor, type Translate } from './view.js'
 
 export interface QuotaFooterProps {
   store: QuotaStore
   t: Translate
+  activeProvider: ActiveProviderTracker
   /** Shell-supplied column state: labels render only when the sidebar is wide. */
   wide?: boolean
   /** Open the settings panel on the quota section. */
@@ -22,20 +24,24 @@ export interface QuotaFooterProps {
 const rank = (state: ProviderQuota['state']): number =>
   state === 'error' ? 3 : state === 'warn' ? 2 : state === 'ok' ? 1 : 0
 
-export function QuotaFooter({ store, t, wide, openSettings }: QuotaFooterProps): React.JSX.Element | null {
+export function QuotaFooter({ store, t, activeProvider, wide, openSettings }: QuotaFooterProps): React.JSX.Element | null {
   const [snapshot, setSnapshot] = React.useState<QuotaSnapshot | undefined>(() => store.getSnapshot())
+  const [provider, setProvider] = React.useState<string | undefined>(() => activeProvider.getProvider())
   React.useEffect(() => store.subscribe(() => setSnapshot(store.getSnapshot())), [store])
+  React.useEffect(() => activeProvider.subscribe(() => setProvider(activeProvider.getProvider())), [activeProvider])
 
   const rows = snapshot?.providers ?? []
   if (rows.length === 0) return null
 
-  // A config-pinned provider anchors the indicator; without one, the worst
-  // state across visible rows wins (surface what needs action).
+  // Focus priority: the row answering for the model currently in use, then
+  // a config-pinned row, then the worst-state row.
+  const inUse = provider !== undefined ? rows.find((row) => row.llmProviders?.includes(provider)) : undefined
   const pinned = rows.filter((row) => row.pinned === true)
   const focus =
-    pinned.length > 0
+    inUse ??
+    (pinned.length > 0
       ? pinned.reduce((a, b) => (rank(b.state) > rank(a.state) ? b : a))
-      : rows.reduce((a, b) => (rank(b.state) > rank(a.state) ? b : a))
+      : rows.reduce((a, b) => (rank(b.state) > rank(a.state) ? b : a)))
   const now = Date.now()
   const tooltip = [t('footerTooltipTitle'), ...rows.map((row) => rowSummary(row, t, now))].join('\n')
 

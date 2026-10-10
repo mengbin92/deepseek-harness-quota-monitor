@@ -72,6 +72,12 @@ export interface ProviderQuota {
   warnThreshold?: number
   /** Config-pinned provider: the sidebar indicator prefers it over the worst-state row. */
   pinned?: boolean
+  /**
+   * LLM provider keys this quota row answers for (from the session's model
+   * selection, e.g. 'neo'). The client surfaces the row whose list contains
+   * the provider of the model currently in use.
+   */
+  llmProviders?: string[]
   /** True when balances come from an earlier successful fetch (current attempt failed). */
   stale?: boolean
   /** ms epoch of the fetch that produced `balances`; absent while pending. */

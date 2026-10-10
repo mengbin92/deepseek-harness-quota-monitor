@@ -15,11 +15,12 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import React from 'react'
 import { TYPERT_REMOTE } from 'dsh-quota-monitor/remote'
 import { createQuotaStore, type QuotaRemote } from './store.js'
+import { createActiveProviderTracker, type ActiveProviderTracker } from './active-provider.js'
 import { QuotaSection } from './QuotaSection.js'
 import { QuotaFooter } from './QuotaFooter.js'
 import { NS, zh, en } from './locales.js'
 
-export const inject = ['locale', 'remote', 'slots']
+export const inject = ['locale', 'remote', 'slots', 'sessions', 'modelDirectories']
 
 interface SlotRuntime {
   register(
@@ -65,7 +66,14 @@ export function apply(ctx: ClientContext): void {
   const store = createQuotaStore(getNamespace)
   const stopPolling = store.start()
 
-  const Section = (): React.JSX.Element => React.createElement(QuotaSection, { store, t })
+  // Follow the model the main-view session currently uses; rows declaring a
+  // matching `llmProviders` entry surface first in the footer and carry an
+  // "in use" badge on the page.
+  const activeProvider: ActiveProviderTracker = createActiveProviderTracker(
+    ctx as unknown as Parameters<typeof createActiveProviderTracker>[0],
+  )
+
+  const Section = (): React.JSX.Element => React.createElement(QuotaSection, { store, t, activeProvider })
   slots.inject('settings.section', () =>
     slots.register(
       { name: 'settings.section', id: 'quota', order: 30, label: () => t('nav'), locale: NS },
@@ -77,6 +85,7 @@ export function apply(ctx: ClientContext): void {
     React.createElement(QuotaFooter, {
       store,
       t,
+      activeProvider,
       wide: props['wide'] as boolean | undefined,
       openSettings: props['openSettings'] as (() => void) | undefined,
     })
@@ -84,5 +93,8 @@ export function apply(ctx: ClientContext): void {
     slots.register({ name: 'sidebar.footer.action', id: 'quota', order: 20, locale: NS }, Footer),
   )
 
-  ;(ctx as unknown as { on(event: string, listener: () => void): void }).on('dispose', stopPolling)
+  ;(ctx as unknown as { on(event: string, listener: () => void): void }).on('dispose', () => {
+    stopPolling()
+    activeProvider.dispose()
+  })
 }
