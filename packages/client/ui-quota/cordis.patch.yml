@@ -1,0 +1,6 @@
+# dsh-client-ui-quota bundle patch: adds the browser roster row the modules
+# node half scans into window.__DSH_BOOT__. The package's `dsh.client`
+# declaration carries the web platform and inject list.
+- insert:
+    - id: ui-quota
+      name: 'dsh-client-ui-quota'

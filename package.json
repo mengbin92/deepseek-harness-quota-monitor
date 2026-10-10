@@ -1,0 +1,17 @@
+{
+  "name": "deepseek-harness-quota-monitor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
+  "description": "DeepSeek Harness plugin monitoring LLM provider balances and subscription quota windows",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mengbin92/deepseek-harness-quota-monitor.git"
+  },
+  "license": "MIT"
+}

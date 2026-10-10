@@ -1,0 +1,6 @@
+# dsh-quota-monitor bundle patch: mounts the host quota service. The web
+# profile composes this after the base bundles, so the timer and (optionally)
+# credentials services are already available.
+- insert:
+    - id: quota-monitor
+      name: 'dsh-quota-monitor'
