@@ -70,6 +70,8 @@ export interface ProviderQuota {
   error?: string
   /** Warn threshold copied from config, so the client can render it. */
   warnThreshold?: number
+  /** Config-pinned provider: the sidebar indicator prefers it over the worst-state row. */
+  pinned?: boolean
   /** True when balances come from an earlier successful fetch (current attempt failed). */
   stale?: boolean
   /** ms epoch of the fetch that produced `balances`; absent while pending. */

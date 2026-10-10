@@ -34,6 +34,9 @@ interface ProviderConfig {
   label?: string
   fetcher?: string
   enabled?: boolean
+  hidden?: boolean
+  order?: number
+  pinned?: boolean
   baseURL?: string
   warnThreshold?: number
   [key: string]: unknown
@@ -74,6 +77,9 @@ export class QuotaMonitor extends TypertRemoteService {
             .default('deepseek-balance')
             .description("Fetcher kind: 'deepseek-balance', 'zai-quota', 'neo-gateway', 'generic-http', 'none', or a registered third-party kind."),
           enabled: z.boolean().default(true).description('Set false to keep the row without fetching it.'),
+          hidden: z.boolean().default(false).description('Set true to drop the provider from snapshots entirely (no card, no sidebar entry, no fetching).'),
+          order: z.number().description('Card ordering on the quota page; lower sorts first, ties keep config order.'),
+          pinned: z.boolean().default(false).description('Prefer this provider for the sidebar indicator instead of the worst-state row.'),
           baseURL: z.string().description('Provider endpoint base URL.'),
           warnThreshold: z.number().description('Warn when any balance drops to or below this amount, or any limit window reaches this percent.'),
         }).loose(),
@@ -96,7 +102,9 @@ export class QuotaMonitor extends TypertRemoteService {
     this.fetchers.set(zaiQuotaFetcher.kind, zaiQuotaFetcher)
     this.fetchers.set(neoGatewayFetcher.kind, neoGatewayFetcher)
     this.fetchers.set(noneFetcher.kind, noneFetcher)
-    this.rows = config.providers.map((provider) => this.pendingRow(provider))
+    this.rows = this.sorted(config.providers.filter((provider) => provider.hidden !== true)).map((provider) =>
+      this.pendingRow(provider),
+    )
     // ctx.setInterval comes from cordis-plugin-timer, mounted by every
     // shipped profile; the handle disposes with this fiber.
     ;(ctx as unknown as { setInterval(cb: () => void, ms: number): void }).setInterval(
@@ -136,10 +144,19 @@ export class QuotaMonitor extends TypertRemoteService {
   @Remote
   async refresh(providerId?: string): Promise<QuotaSnapshot> {
     const targets = this.config.providers.filter(
-      (provider) => providerId === undefined || provider.id === providerId,
+      (provider) =>
+        provider.hidden !== true && (providerId === undefined || provider.id === providerId),
     )
     await Promise.all(targets.map((provider) => this.refreshOne(provider)))
     return this.snapshot()
+  }
+
+  /** Visible providers in display order: `order` ascending, ties keep config order. */
+  private sorted(providers: ProviderConfig[]): ProviderConfig[] {
+    return providers
+      .map((provider, index) => ({ provider, index }))
+      .sort((a, b) => (a.provider.order ?? 0) - (b.provider.order ?? 0) || a.index - b.index)
+      .map((entry) => entry.provider)
   }
 
   private pendingRow(provider: ProviderConfig): ProviderQuota {
@@ -151,6 +168,7 @@ export class QuotaMonitor extends TypertRemoteService {
       limits: [],
     }
     if (provider.warnThreshold !== undefined) base.warnThreshold = provider.warnThreshold
+    if (provider.pinned === true) base.pinned = true
     if (provider.enabled === false) base.state = 'disabled'
     else if ((provider.fetcher ?? 'deepseek-balance') === 'none') base.state = 'unsupported'
     return base
@@ -199,6 +217,7 @@ export class QuotaMonitor extends TypertRemoteService {
         fetchedAt: Date.now(),
       }
       if (provider.warnThreshold !== undefined) row.warnThreshold = provider.warnThreshold
+      if (provider.pinned === true) row.pinned = true
       this.store(row)
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught)
@@ -213,6 +232,7 @@ export class QuotaMonitor extends TypertRemoteService {
       }
       if (previous?.fetchedAt !== undefined) row.fetchedAt = previous.fetchedAt
       if (provider.warnThreshold !== undefined) row.warnThreshold = provider.warnThreshold
+      if (provider.pinned === true) row.pinned = true
       this.store(row)
     } finally {
       clearTimeout(timeout)

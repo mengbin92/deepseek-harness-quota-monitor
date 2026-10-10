@@ -42,6 +42,7 @@ const providerQuotaSchema = () =>
     limits: z.array(limitInfoSchema()),
     error: z.string().optional(),
     warnThreshold: z.number().optional(),
+    pinned: z.boolean().optional(),
     stale: z.boolean().optional(),
     fetchedAt: z.number().optional(),
   })

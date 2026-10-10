@@ -29,7 +29,13 @@ export function QuotaFooter({ store, t, wide, openSettings }: QuotaFooterProps):
   const rows = snapshot?.providers ?? []
   if (rows.length === 0) return null
 
-  const worst = rows.reduce((a, b) => (rank(b.state) > rank(a.state) ? b : a))
+  // A config-pinned provider anchors the indicator; without one, the worst
+  // state across visible rows wins (surface what needs action).
+  const pinned = rows.filter((row) => row.pinned === true)
+  const focus =
+    pinned.length > 0
+      ? pinned.reduce((a, b) => (rank(b.state) > rank(a.state) ? b : a))
+      : rows.reduce((a, b) => (rank(b.state) > rank(a.state) ? b : a))
   const now = Date.now()
   const tooltip = [t('footerTooltipTitle'), ...rows.map((row) => rowSummary(row, t, now))].join('\n')
 
@@ -52,9 +58,9 @@ export function QuotaFooter({ store, t, wide, openSettings }: QuotaFooterProps):
     >
       <span
         aria-hidden
-        style={{ width: 8, height: 8, borderRadius: '50%', background: stateColor(worst.state), flexShrink: 0 }}
+        style={{ width: 8, height: 8, borderRadius: '50%', background: stateColor(focus.state), flexShrink: 0 }}
       />
-      {wide === true && <span>{rowSummary(worst, t, now)}</span>}
+      {wide === true && <span>{rowSummary(focus, t, now)}</span>}
       <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
         {tooltip}
       </span>

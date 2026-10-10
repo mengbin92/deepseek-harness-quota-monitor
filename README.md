@@ -143,7 +143,17 @@ dsh plugin --profile web add "$(pwd)"
       - id: stepfun
         label: 阶跃星辰
         fetcher: none
+        hidden: true                # 完全不显示（不抓、不出卡片、不进侧栏）
 ```
+
+**每个 provider 的展示自定义**：
+
+| 字段 | 作用 |
+|---|---|
+| `order` | 卡片排序，小的在前（默认 0，并列按配置顺序） |
+| `pinned: true` | 侧栏指示器固定显示该供应商（缺省显示状态最差的一行） |
+| `hidden: true` | 彻底隐藏：不抓取、不出现在页面和侧栏（适合 `none` 占位行） |
+| `enabled: false` | 保留卡片但停止抓取，显示"已停用" |
 
 `warnThreshold` 语义：对余额表示"剩余 ≤ 阈值 → 告警"，对窗口限额表示"用量 ≥ 阈值% → 告警"。
 
