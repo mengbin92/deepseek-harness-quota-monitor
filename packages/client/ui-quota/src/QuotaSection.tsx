@@ -7,7 +7,7 @@
 import React from 'react'
 import type { QuotaSnapshot } from 'dsh-quota-monitor/types'
 import type { QuotaStore } from './store.js'
-import { balanceLine, limitLine, stateColor, stateKey, type Translate } from './view.js'
+import { balanceLine, formatResetCountdown, limitRemaining, remainingTone, stateColor, stateKey, toneColor, type Translate } from './view.js'
 
 export interface QuotaSectionProps {
   store: QuotaStore
@@ -35,9 +35,14 @@ export function QuotaSection({ store, t }: QuotaSectionProps): React.JSX.Element
 
   const refresh = async (providerId?: string) => {
     setRefreshing(providerId ?? 'all')
+    const started = Date.now()
     try {
       await store.refresh(providerId)
     } finally {
+      // cc-switch convention: keep the spinner for at least 600ms — a faster
+      // refresh reads as "nothing happened".
+      const elapsed = Date.now() - started
+      if (elapsed < 600) await new Promise((resolve) => setTimeout(resolve, 600 - elapsed))
       setRefreshing(undefined)
     }
   }
@@ -120,28 +125,70 @@ export function QuotaSection({ store, t }: QuotaSectionProps): React.JSX.Element
 }
 
 function LimitRow({ limit, t, now }: { limit: import('dsh-quota-monitor/types').LimitInfo; t: Translate; now: number }): React.JSX.Element {
-  const percent = limit.percent
+  const remaining = limitRemaining(limit)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <p style={{ margin: 0, fontSize: 13 }}>{limitLine(limit, t, now)}</p>
-      {percent !== undefined && (
+      <p style={{ margin: 0, fontSize: 13 }}>
+        <LimitText limit={limit} t={t} now={now} remaining={remaining} />
+      </p>
+      {remaining !== undefined && (
         <div
           role="progressbar"
-          aria-valuenow={Math.round(percent)}
+          aria-valuenow={Math.round(remaining)}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={limit.label}
+          aria-label={`${limit.label} ${Math.round(remaining)}%`}
           style={{ height: 4, borderRadius: 2, background: 'var(--dsh-border, #e5e7eb)', overflow: 'hidden' }}
         >
           <div
             style={{
               height: '100%',
-              width: `${Math.min(100, percent)}%`,
-              background: percent >= 80 ? 'var(--dsh-danger, #ef4444)' : percent >= 50 ? 'var(--dsh-warning, #eab308)' : 'var(--dsh-success, #22c55e)',
+              width: `${Math.min(100, remaining)}%`,
+              background: toneColor(remainingTone(remaining)),
             }}
           />
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * cc-switch-style limit text: label and "剩余" stay muted; only the number
+ * carries the tone color. Exhausted windows color the whole phrase red.
+ */
+function LimitText({
+  limit,
+  t,
+  now,
+  remaining,
+}: {
+  limit: import('dsh-quota-monitor/types').LimitInfo
+  t: Translate
+  now: number
+  remaining: number | undefined
+}): React.JSX.Element {
+  const reset = limit.resetsAt !== undefined ? `${formatResetCountdown(limit.resetsAt, now)} ${t('resetsIn')}` : undefined
+  if (remaining === undefined) {
+    return (
+      <>
+        {limit.label}
+        {reset !== undefined && <span style={{ color: 'var(--dsh-muted, #9ca3af)' }}> · {reset}</span>}
+      </>
+    )
+  }
+  const tone = remainingTone(remaining)
+  const color = toneColor(tone)
+  const valueText = remaining <= 0 ? t('usedUp') : `${Math.round(remaining)}%`
+  return (
+    <>
+      <span>
+        {limit.label}
+        {remaining > 0 && <span style={{ color: 'var(--dsh-muted, #9ca3af)' }}> · {t('left')} </span>}
+        {remaining > 0 && ' '}
+      </span>
+      <span style={{ color, fontWeight: 600 }}>{valueText}</span>
+      {reset !== undefined && <span style={{ color: 'var(--dsh-muted, #9ca3af)' }}> · {reset}</span>}
+    </>
   )
 }
