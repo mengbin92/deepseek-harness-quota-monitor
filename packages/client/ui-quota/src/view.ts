@@ -82,16 +82,32 @@ export function limitLine(limit: LimitInfo, t: Translate, now: number): string {
   return parts.join(' · ')
 }
 
-/** One-line summary for tooltips and the sidebar indicator. */
+/** Short form of a window label: the segment after the last '·' ('日额度'). */
+export function shortWindowLabel(label: string): string {
+  const segments = label.split('·').map((part) => part.trim()).filter(Boolean)
+  return segments[segments.length - 1] ?? label
+}
+
+/**
+ * One-line summary for tooltips and the sidebar indicator. Rows with
+ * subscription windows show only the shortest window (nearest reset — the
+ * neo daily quota, the z.ai 5-hour window), following cc-switch's
+ * shortest-window-first rule; balance-only rows show the balance.
+ */
 export function rowSummary(row: ProviderQuota, t: Translate, now: number): string {
   if (row.state === 'error') return `${row.label}: ${t('stateError')}${row.stale ? t('stale') : ''}`
   if (row.state !== 'ok' && row.state !== 'warn') return `${row.label}: ${t(stateKey(row.state))}`
-  const parts: string[] = []
-  if (row.balances[0]?.total !== undefined) parts.push(`${formatAmount(row.balances[0].total)} ${row.balances[0].currency}`)
-  const worstLimit = row.limits
+  const windows = row.limits
     .map((limit) => ({ limit, remaining: limitRemaining(limit) }))
     .filter((entry): entry is { limit: LimitInfo; remaining: number } => entry.remaining !== undefined)
-    .sort((a, b) => a.remaining - b.remaining)[0]
-  if (worstLimit) parts.push(`${worstLimit.limit.label} ${t('left')} ${Math.round(worstLimit.remaining)}%`)
-  return `${row.label}: ${parts.join(' · ') || t('stateOk')}`
+  if (windows.length > 0) {
+    const shortest = windows.sort(
+      (a, b) => (a.limit.resetsAt ?? Number.POSITIVE_INFINITY) - (b.limit.resetsAt ?? Number.POSITIVE_INFINITY),
+    )[0]
+    return `${row.label}: ${shortWindowLabel(shortest.limit.label)} ${t('left')} ${Math.round(shortest.remaining)}%`
+  }
+  if (row.balances[0]?.total !== undefined) {
+    return `${row.label}: ${formatAmount(row.balances[0].total)} ${row.balances[0].currency}`
+  }
+  return `${row.label}: ${t('stateOk')}`
 }
