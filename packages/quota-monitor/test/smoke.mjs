@@ -92,7 +92,7 @@ const neo = await neoGatewayFetcher.fetch({
 })
 console.log('neo:', JSON.stringify(neo))
 if (neo.balances?.[0]?.total !== 299.8) throw new Error('neo wallet parse failed')
-if (neo.balances[0].used !== 4790) throw new Error('neo used conversion failed')
+if (neo.balances[0].used !== undefined) throw new Error('neo wallet must not map cumulative spend into used')
 if (neo.limits?.length !== 2 || neo.limits[0].percent !== 10) throw new Error('neo limits parse failed')
 if (neo.limits[0].resetsAt !== 1791599733000) throw new Error('neo resetsAt seconds->ms failed')
 globalThis.fetch = realFetch

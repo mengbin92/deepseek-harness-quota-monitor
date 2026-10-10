@@ -82,14 +82,12 @@ export const neoGatewayFetcher: BalanceFetcher = {
     if (walletResult.status === 'fulfilled' && walletResult.value !== null) {
       const doc = walletResult.value as NeoUsageResponse
       const remaining = num(doc.remaining) ?? num(doc.balance)
-      const perUsd = num(doc.quota?.per_usd)
-      const costQuota = num(doc.usage?.total?.cost)
       const balance: BalanceInfo = { currency: doc.unit ?? 'USD' }
       if (remaining !== undefined) balance.total = remaining
-      if (costQuota !== undefined && perUsd) balance.used = Math.round((costQuota / perUsd) * 10000) / 10000
-      if (balance.total === undefined && balance.used === undefined) {
-        throw new Error('wallet endpoint returned no balance fields')
-      }
+      // 不映射 usage.total.cost：那是钱包的累计历史消耗（换算后通常远大于
+      // 余额），放在"已用"位会被误读为窗口用量；订阅窗口的用量由 limits[]
+      // 正确承载。
+      if (balance.total === undefined) throw new Error('wallet endpoint returned no balance fields')
       balances.push(balance)
     }
 

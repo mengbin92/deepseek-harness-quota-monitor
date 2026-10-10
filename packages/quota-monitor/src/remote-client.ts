@@ -80,6 +80,7 @@ const refreshInvocation = {
       name: 'providerId',
       wire: 'providerId',
       source: 'json',
+      acceptsUndefined: true,
       codec: {
         mode: 'strict',
         typeSymbol: 'dsh-quota-monitor#quota/refresh:providerId',
