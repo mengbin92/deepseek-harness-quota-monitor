@@ -32,12 +32,6 @@ export const zh = {
   errorLabel: '错误',
   empty: '尚未配置供应商。在 cordis.patch.yml 的 dsh-quota-monitor 配置里添加 providers。',
   footerTooltipTitle: '供应商额度',
-  windowUnit: {
-    tokens: 'tokens',
-    time: '次',
-    requests: '次',
-    credits: '积分',
-  },
 }
 
 export const en = {
@@ -65,10 +59,4 @@ export const en = {
   errorLabel: 'Error',
   empty: 'No providers configured. Add providers to the dsh-quota-monitor entry in cordis.patch.yml.',
   footerTooltipTitle: 'Provider quota',
-  windowUnit: {
-    tokens: 'tokens',
-    time: 'calls',
-    requests: 'calls',
-    credits: 'credits',
-  },
 }

@@ -7,7 +7,7 @@
  * @module dsh-quota-monitor/fetchers/zai
  */
 import type { BalanceFetcher, BalanceFetchRequest, BalanceFetchResult, LimitInfo } from '../types.js'
-import { fetchJson, joinUrl } from './util.js'
+import { fetchJson, joinUrl, toNumber } from './util.js'
 
 interface ZaiLimitEntry {
   type?: string
@@ -34,15 +34,6 @@ const UNIT_LABELS_EN: Record<number, { label: string; kind: LimitInfo['kind'] }>
   5: { label: 'Monthly tools', kind: 'time' },
 }
 
-const num = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string') {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
-  }
-  return undefined
-}
-
 export const zaiQuotaFetcher: BalanceFetcher = {
   kind: 'zai-quota',
   async fetch(request: BalanceFetchRequest): Promise<BalanceFetchResult> {
@@ -66,11 +57,11 @@ export const zaiQuotaFetcher: BalanceFetcher = {
     const limits: LimitInfo[] = []
     for (const entry of entries) {
       const meta = entry.unit !== undefined ? labels[entry.unit] : undefined
-      const used = num(entry.usage ?? entry.currentValue)
-      const total = num(entry.number)
-      const remaining = num(entry.remaining) ?? (used !== undefined && total !== undefined ? total - used : undefined)
-      const percent = num(entry.percentage) ?? (used !== undefined && total ? (used / total) * 100 : undefined)
-      const resetsAt = num(entry.nextResetTime ?? entry.resetTime)
+      const used = toNumber(entry.usage ?? entry.currentValue)
+      const total = toNumber(entry.number)
+      const remaining = toNumber(entry.remaining) ?? (used !== undefined && total !== undefined ? total - used : undefined)
+      const percent = toNumber(entry.percentage) ?? (used !== undefined && total ? (used / total) * 100 : undefined)
+      const resetsAt = toNumber(entry.nextResetTime ?? entry.resetTime)
       const limit: LimitInfo = {
         label: meta?.label ?? entry.type ?? `limit-${entry.unit ?? '?'}`,
         kind: meta?.kind ?? 'tokens',

@@ -7,7 +7,7 @@
  * @module dsh-quota-monitor/fetchers/neo-gateway
  */
 import type { BalanceFetcher, BalanceFetchRequest, BalanceFetchResult, BalanceInfo, LimitInfo } from '../types.js'
-import { fetchJson, joinUrl } from './util.js'
+import { fetchJson, joinUrl, toNumber } from './util.js'
 
 interface NeoUsageWindow {
   used?: number
@@ -40,15 +40,12 @@ interface NeoSubscriptionResponse {
   }
 }
 
-const num = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined
-
 function windowLimit(label: string, window: NeoUsageWindow | undefined): LimitInfo | undefined {
   if (!window || window.unlimited === true) return undefined
-  const used = num(window.used)
-  const total = num(window.limit)
-  const remaining = num(window.remaining)
-  const resetsAt = num(window.next_refresh)
+  const used = toNumber(window.used)
+  const total = toNumber(window.limit)
+  const remaining = toNumber(window.remaining)
+  const resetsAt = toNumber(window.next_refresh)
   const limit: LimitInfo = { label, kind: 'credits' }
   if (used !== undefined) limit.used = used
   if (total !== undefined) limit.total = total
@@ -78,10 +75,22 @@ export const neoGatewayFetcher: BalanceFetcher = {
         : Promise.resolve<null>(null),
     ])
 
+    // A failed branch must not vanish silently: when the other branch still
+    // yields data the row renders `ok` with partial content, so log the lost
+    // branch for diagnosis. Both branches failing throws below as before.
+    for (const [branch, result] of [
+      ['wallet', walletResult],
+      ['subscription', subscriptionResult],
+    ] as const) {
+      if (result.status === 'rejected') {
+        console.warn(`dsh-quota-monitor: neo-gateway ${branch} fetch failed:`, result.reason)
+      }
+    }
+
     const balances: BalanceInfo[] = []
     if (walletResult.status === 'fulfilled' && walletResult.value !== null) {
       const doc = walletResult.value as NeoUsageResponse
-      const remaining = num(doc.remaining) ?? num(doc.balance)
+      const remaining = toNumber(doc.remaining) ?? toNumber(doc.balance)
       const balance: BalanceInfo = { currency: doc.unit ?? 'USD' }
       if (remaining !== undefined) balance.total = remaining
       // 不映射 usage.total.cost：那是钱包的累计历史消耗（换算后通常远大于

@@ -36,7 +36,8 @@
     "cordis.patch.yml"
   ],
   "scripts": {
-    "build": "npx tsc -p tsconfig.json && node esbuild.mjs"
+    "build": "tsc -p tsconfig.json && node esbuild.mjs",
+    "test": "node test/unwrap-remote.mjs && node test/store-paths.mjs && node test/row-summary.mjs && node test/active-provider.mjs && node test/simulate.mjs && node test/real-mount.mjs"
   },
   "license": "MIT",
   "peerDependencies": {

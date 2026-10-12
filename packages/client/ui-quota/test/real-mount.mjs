@@ -1,10 +1,18 @@
 // Load the REAL dsh-typert-registry + dsh-api-gateway client bundles in Node
 // with a stub ModuleLoader, then run the real $mount against our real
 // TYPERT_REMOTE contribution to find any validation failure.
-import { readFileSync } from 'node:fs'
+// Requires a local DSH install; set DSH_PROFILE_NM to the profile's
+// @deepseek-ai node_modules directory. Skips cleanly when absent.
+import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { createRequire } from 'node:module'
-const require_ = createRequire('/Users/neo/Desktop/dsh/packages/client/ui-quota/test/')
-const NM = '/Users/neo/.dsh/profiles/node_modules/@deepseek-ai'
+const require_ = createRequire(import.meta.url)
+const NM = process.env.DSH_PROFILE_NM ?? join(homedir(), '.dsh/profiles/node_modules/@deepseek-ai')
+if (!existsSync(join(NM, 'dsh-api-gateway/lib/client.js'))) {
+  console.log('SKIP real-mount: DSH profile bundles not found (set DSH_PROFILE_NM)')
+  process.exit(0)
+}
 
 const registrations = []
 globalThis.window = { __ModuleLoader__: { load: (d) => registrations.push(d) } }
@@ -53,7 +61,7 @@ gwApply(root)
 await new Promise((r) => setTimeout(r, 200))
 console.log('ctx.remote:', typeof root.remote)
 
-const { TYPERT_REMOTE } = await import('/Users/neo/Desktop/dsh/packages/quota-monitor/lib/remote-client.js')
+const { TYPERT_REMOTE } = await import('../../../quota-monitor/lib/remote-client.js')
 try {
   const dispose = await root.remote.$mount(TYPERT_REMOTE)
   console.log('$mount OK, dispose:', typeof dispose)

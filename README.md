@@ -37,7 +37,7 @@ packages/
 │   ├── src/types.ts        #   QuotaSnapshot / BalanceInfo / LimitInfo / BalanceFetcher
 │   ├── src/fetchers/       #   4 个内置抓取适配器 + 共享 HTTP 工具
 │   ├── src/remote-client.ts#   Typert Remote 描述符（host/client 共用）
-│   └── test/smoke.mjs      #   适配器解析冒烟测试
+│   └── test/               #   适配器冒烟 + 服务逻辑测试（npm test）
 └── client/ui-quota/        # Web 客户端包（dsh-client-ui-quota）
     └── src/
         ├── client.ts       #   apply(ctx)：槽位注册 + Remote 挂载 + HTTP 回退
@@ -176,16 +176,16 @@ dsh plugin --profile web add "$(pwd)"
 # Host 包：类型检查 + 构建
 cd packages/quota-monitor && npm run build
 
-# 适配器冒烟测试（mock fetch，无需真实 key）
-node test/smoke.mjs          # 期望末尾输出 NEO SMOKE OK
+# Host 测试：适配器解析冒烟（mock fetch，无需真实 key）+ 服务逻辑
+# （warn 阈值、错误/缓存行、并发去重、重复 id）
+npm test                     # 期望末尾输出 MONITOR OK
 
 # Client 包：构建（tsc 类型 + esbuild 打包成 ModuleLoader 格式）
 cd ../client/ui-quota && npm run build
 
-# 客户端模拟测试（Node 里模拟 DSH 模块系统执行 bundle）
-node test/simulate.mjs       # CLIENT BUNDLE OK
-node test/nested-mount.mjs   # NESTED MOUNT OK
-node test/store-paths.mjs    # FALLBACK OK / TYPED PATH OK
+# 客户端测试（Node 里模拟 DSH 模块系统执行 bundle；real-mount 需要本机
+# 装有 DSH，否则自动跳过）
+npm test                     # UNWRAP / FALLBACK / SUMMARY / TRACKER / CLIENT BUNDLE OK
 ```
 
 改动后重启 `dsh web`（或桌面应用）生效；DSH 的 client-hmr 在 `pnpm run dev:web` 运行时支持热重载。

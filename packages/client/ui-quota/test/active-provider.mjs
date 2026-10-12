@@ -1,7 +1,7 @@
 // Tracker + footer focus logic with mocked ctx services.
 import { createRequire } from 'node:module'
-const require_ = createRequire('/Users/neo/Desktop/dsh/packages/client/ui-quota/test/')
-const { createActiveProviderTracker } = require_('/Users/neo/Desktop/dsh/packages/client/ui-quota/lib/active-provider.js')
+const require_ = createRequire(import.meta.url)
+const { createActiveProviderTracker } = require_('../lib/active-provider.js')
 
 let currentProvider = 'neo'
 const ctx = {

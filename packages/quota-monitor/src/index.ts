@@ -49,11 +49,6 @@ interface QuotaMonitorConfig {
   providers: ProviderConfig[]
 }
 
-const noneFetcher: BalanceFetcher = {
-  kind: 'none',
-  fetch: () => Promise.reject(new Error('provider has no balance endpoint')),
-}
-
 /**
  * Periodic balance monitor. The service owns the fetch schedule and the last
  * known snapshot; every consumer reads the assembled snapshot, so a burst of
@@ -92,6 +87,10 @@ export class QuotaMonitor extends TypertRemoteService {
   static inject = ['timer']
 
   private readonly fetchers = new Map<string, BalanceFetcher>()
+  /** Visible providers in display order, deduplicated by id. */
+  private readonly providers: ProviderConfig[]
+  /** In-flight refresh per provider id: concurrent triggers share one fetch. */
+  private readonly inflight = new Map<string, Promise<void>>()
   private rows: ProviderQuota[]
 
   constructor(
@@ -103,10 +102,18 @@ export class QuotaMonitor extends TypertRemoteService {
     this.fetchers.set(genericHttpFetcher.kind, genericHttpFetcher)
     this.fetchers.set(zaiQuotaFetcher.kind, zaiQuotaFetcher)
     this.fetchers.set(neoGatewayFetcher.kind, neoGatewayFetcher)
-    this.fetchers.set(noneFetcher.kind, noneFetcher)
-    this.rows = this.sorted(config.providers.filter((provider) => provider.hidden !== true)).map((provider) =>
-      this.pendingRow(provider),
+    const seen = new Set<string>()
+    this.providers = this.sorted(config.providers.filter((provider) => provider.hidden !== true)).filter(
+      (provider) => {
+        if (seen.has(provider.id)) {
+          console.warn(`dsh-quota-monitor: duplicate provider id '${provider.id}' ignored`)
+          return false
+        }
+        seen.add(provider.id)
+        return true
+      },
     )
+    this.rows = this.providers.map((provider) => this.pendingRow(provider))
     // ctx.setInterval comes from cordis-plugin-timer, mounted by every
     // shipped profile; the handle disposes with this fiber.
     ;(ctx as unknown as { setInterval(cb: () => void, ms: number): void }).setInterval(
@@ -135,7 +142,11 @@ export class QuotaMonitor extends TypertRemoteService {
   snapshot(): QuotaSnapshot {
     return {
       fetchedAt: Date.now(),
-      providers: this.rows.map((row) => ({ ...row, balances: row.balances.map((line) => ({ ...line })) })),
+      providers: this.rows.map((row) => ({
+        ...row,
+        balances: row.balances.map((line) => ({ ...line })),
+        limits: row.limits.map((limit) => ({ ...limit })),
+      })),
     }
   }
 
@@ -145,10 +156,7 @@ export class QuotaMonitor extends TypertRemoteService {
    */
   @Remote
   async refresh(providerId?: string): Promise<QuotaSnapshot> {
-    const targets = this.config.providers.filter(
-      (provider) =>
-        provider.hidden !== true && (providerId === undefined || provider.id === providerId),
-    )
+    const targets = this.providers.filter((provider) => providerId === undefined || provider.id === providerId)
     await Promise.all(targets.map((provider) => this.refreshOne(provider)))
     return this.snapshot()
   }
@@ -177,14 +185,30 @@ export class QuotaMonitor extends TypertRemoteService {
     return base
   }
 
-  private async refreshOne(provider: ProviderConfig): Promise<void> {
+  /**
+   * Refresh one provider, deduplicating concurrent triggers: the periodic
+   * timer and a manual client refresh racing each other share the same
+   * fetch, so a slower stale attempt can never overwrite a newer result.
+   */
+  private refreshOne(provider: ProviderConfig): Promise<void> {
+    const existing = this.inflight.get(provider.id)
+    if (existing) return existing
+    // runFetch never rejects; every failure folds into the row state.
+    const task = this.runFetch(provider).finally(() => {
+      this.inflight.delete(provider.id)
+    })
+    this.inflight.set(provider.id, task)
+    return task
+  }
+
+  private async runFetch(provider: ProviderConfig): Promise<void> {
     if (provider.enabled === false) {
-      this.store({ ...this.pendingRow(provider), state: 'disabled' })
+      this.store(this.pendingRow(provider))
       return
     }
     const kind = provider.fetcher ?? 'deepseek-balance'
     if (kind === 'none') {
-      this.store({ ...this.pendingRow(provider), state: 'unsupported' })
+      this.store(this.pendingRow(provider))
       return
     }
     const fetcher = this.fetchers.get(kind)
@@ -211,23 +235,17 @@ export class QuotaMonitor extends TypertRemoteService {
         },
       })
       const state: QuotaState = this.isWarn(balances, limits, provider.warnThreshold) ? 'warn' : 'ok'
-      const row: ProviderQuota = {
-        id: provider.id,
-        label: provider.label ?? provider.id,
+      this.store({
+        ...this.pendingRow(provider),
         state,
         balances,
         limits,
         fetchedAt: Date.now(),
-      }
-      if (provider.warnThreshold !== undefined) row.warnThreshold = provider.warnThreshold
-      if (provider.pinned === true) row.pinned = true
-      if (provider.llmProviders !== undefined) row.llmProviders = provider.llmProviders
-      this.store(row)
+      })
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught)
       const row: ProviderQuota = {
-        id: provider.id,
-        label: provider.label ?? provider.id,
+        ...this.pendingRow(provider),
         state: 'error',
         balances: previous?.balances ?? [],
         limits: previous?.limits ?? [],
@@ -235,9 +253,6 @@ export class QuotaMonitor extends TypertRemoteService {
         stale: previous?.fetchedAt !== undefined,
       }
       if (previous?.fetchedAt !== undefined) row.fetchedAt = previous.fetchedAt
-      if (provider.warnThreshold !== undefined) row.warnThreshold = provider.warnThreshold
-      if (provider.pinned === true) row.pinned = true
-      if (provider.llmProviders !== undefined) row.llmProviders = provider.llmProviders
       this.store(row)
     } finally {
       clearTimeout(timeout)

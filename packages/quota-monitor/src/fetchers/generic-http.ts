@@ -6,7 +6,7 @@
  * @module dsh-quota-monitor/fetchers/generic-http
  */
 import type { BalanceFetcher, BalanceFetchRequest, BalanceFetchResult, BalanceInfo } from '../types.js'
-import { fetchJson, joinUrl, readPath, readPathString } from './util.js'
+import { fetchJson, joinUrl, readPath, readPathString, toNumber } from './util.js'
 
 export const genericHttpFetcher: BalanceFetcher = {
   kind: 'generic-http',
@@ -44,35 +44,30 @@ export const genericHttpFetcher: BalanceFetcher = {
       throw new Error('response did not contain a balance or usage figure at the configured mapping paths')
     }
     const result: BalanceFetchResult = { balances: balance.total !== undefined || balance.used !== undefined ? [balance] : [] }
-    if (limitsPath) result.limits = readLimits(doc, limitsPath, mapping)
+    if (limitsPath) result.limits = readLimits(doc, limitsPath)
     return result
   },
 }
 
 interface RawLimit {
-  label?: string
-  type?: string
-  kind?: string
-  used?: number
-  total?: number
-  remaining?: number
-  percent?: number
-  resetsAt?: number
+  label?: unknown
+  type?: unknown
+  kind?: unknown
+  used?: unknown
+  total?: unknown
+  remaining?: unknown
+  percent?: unknown
+  resetsAt?: unknown
 }
 
-/** Map a raw limits array onto LimitInfo rows through optional sub-paths. */
-function readLimits(
-  doc: unknown,
-  limitsPath: string,
-  mapping: Record<string, string>,
-): import('../types.js').LimitInfo[] {
+/** Map a raw limits array onto LimitInfo rows, coercing numeric fields. */
+function readLimits(doc: unknown, limitsPath: string): import('../types.js').LimitInfo[] {
   let node: unknown = doc
   for (const segment of limitsPath.split('.')) {
     if (node === null || typeof node !== 'object') return []
     node = (node as Record<string, unknown>)[segment]
   }
   if (!Array.isArray(node)) return []
-  const sub = (entry: RawLimit, key: string): string | undefined => mapping[key]
   return node
     .filter((entry): entry is RawLimit => entry !== null && typeof entry === 'object')
     .map((entry) => {
@@ -81,12 +76,16 @@ function readLimits(
         label: String(entry.label ?? entry.type ?? 'limit'),
         kind,
       }
-      if (entry.used !== undefined) limit.used = entry.used
-      if (entry.total !== undefined) limit.total = entry.total
-      if (entry.remaining !== undefined) limit.remaining = entry.remaining
-      if (entry.percent !== undefined) limit.percent = entry.percent
-      if (entry.resetsAt !== undefined) limit.resetsAt = entry.resetsAt
-      void sub
+      const used = toNumber(entry.used)
+      const total = toNumber(entry.total)
+      const remaining = toNumber(entry.remaining)
+      const percent = toNumber(entry.percent)
+      const resetsAt = toNumber(entry.resetsAt)
+      if (used !== undefined) limit.used = used
+      if (total !== undefined) limit.total = total
+      if (remaining !== undefined) limit.remaining = remaining
+      if (percent !== undefined) limit.percent = percent
+      if (resetsAt !== undefined) limit.resetsAt = resetsAt
       return limit
     })
 }

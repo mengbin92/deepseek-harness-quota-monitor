@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
-const require_ = createRequire('/Users/neo/Desktop/dsh/packages/client/ui-quota/test/')
-const { rowSummary, shortWindowLabel } = require_('/Users/neo/Desktop/dsh/packages/client/ui-quota/lib/view.js')
+const require_ = createRequire(import.meta.url)
+const { rowSummary, shortWindowLabel } = require_('../lib/view.js')
 const t = (k) => ({ left: '剩余', stateOk: '正常', stateError: '查询失败' }[k] ?? k)
 const neo = {
   id: 'neo', label: 'Neo 网关', state: 'ok',

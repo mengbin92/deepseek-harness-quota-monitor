@@ -1,4 +1,19 @@
 /**
+ * Coerce a decoded JSON value to a finite number. Numeric strings are
+ * accepted (`"42.50"`), but empty or blank strings are not — `Number('')`
+ * would silently read as 0 and a missing balance would render as an empty
+ * wallet.
+ */
+export function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return undefined
+}
+
+/**
  * Read a numeric field out of an arbitrary JSON document by dotted path.
  * Array segments are written as numeric path components (`data.0.balance`).
  *
@@ -13,12 +28,7 @@ export function readPath(doc: unknown, path: string | undefined): number | undef
     if (node === null || typeof node !== 'object') return undefined
     node = (node as Record<string, unknown>)[segment]
   }
-  if (typeof node === 'number' && Number.isFinite(node)) return node
-  if (typeof node === 'string') {
-    const parsed = Number(node)
-    if (Number.isFinite(parsed)) return parsed
-  }
-  return undefined
+  return toNumber(node)
 }
 
 /** Read a string field by dotted path, for currency tags. */

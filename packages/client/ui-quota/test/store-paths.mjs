@@ -1,8 +1,8 @@
 // Store fallback: accessor returns undefined -> plain HTTP wire call must
 // deliver the snapshot, and status must flip to ready.
 import { createRequire } from 'node:module'
-const require_ = createRequire('/Users/neo/Desktop/dsh/packages/client/ui-quota/test/')
-const { createQuotaStore } = require_('/Users/neo/Desktop/dsh/packages/client/ui-quota/lib/store.js')
+const require_ = createRequire(import.meta.url)
+const { createQuotaStore } = require_('../lib/store.js')
 
 const SNAP = { fetchedAt: 1, providers: [{ id: 'deepseek', label: 'DeepSeek', state: 'ok', balances: [{ currency: 'CNY', total: 21.37 }], limits: [] }] }
 let calls = []

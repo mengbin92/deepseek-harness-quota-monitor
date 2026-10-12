@@ -1,7 +1,7 @@
 // Regression: typed namespace returning the RemoteResult envelope must unwrap.
 import { createRequire } from 'node:module'
-const require_ = createRequire('/Users/neo/Desktop/dsh/packages/client/ui-quota/test/')
-const { createQuotaStore } = require_('/Users/neo/Desktop/dsh/packages/client/ui-quota/lib/store.js')
+const require_ = createRequire(import.meta.url)
+const { createQuotaStore } = require_('../lib/store.js')
 const SNAP = { fetchedAt: 1, providers: [{ id: 'x', label: 'x', state: 'ok', balances: [], limits: [] }] }
 const ns = {
   snapshot: async () => ({ ok: true, value: SNAP }),

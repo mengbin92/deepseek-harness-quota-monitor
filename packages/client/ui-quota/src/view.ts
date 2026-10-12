@@ -72,16 +72,6 @@ export const toneColor = (tone: 'danger' | 'warning' | 'normal'): string =>
   : tone === 'warning' ? 'var(--dsh-warning, #eab308)'
   : 'var(--dsh-success, #22c55e)'
 
-export function limitLine(limit: LimitInfo, t: Translate, now: number): string {
-  const unit = t(`windowUnit.${limit.kind}`)
-  const parts: string[] = [limit.label]
-  const remaining = limitRemaining(limit)
-  if (remaining !== undefined) parts.push(remaining <= 0 ? t('usedUp') : `${t('left')} ${Math.round(remaining)}%`)
-  else if (limit.remaining !== undefined) parts.push(`${t('left')} ${formatAmount(limit.remaining)} ${unit}`)
-  if (limit.resetsAt !== undefined) parts.push(`${formatResetCountdown(limit.resetsAt, now)} ${t('resetsIn')}`)
-  return parts.join(' · ')
-}
-
 /** Short form of a window label: the segment after the last '·' ('日额度'). */
 export function shortWindowLabel(label: string): string {
   const segments = label.split('·').map((part) => part.trim()).filter(Boolean)
