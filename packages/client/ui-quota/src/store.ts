@@ -38,6 +38,8 @@ export interface QuotaStore {
 }
 
 const POLL_INTERVAL_MS = 60_000
+/** Fast follow-up poll while rows are still pending (host just booted). */
+const PENDING_REPOLL_MS = 5_000
 
 interface WireResponse {
   result?: { ok: boolean; value?: QuotaSnapshot; error?: { code: string; message: string } }
@@ -78,6 +80,8 @@ export function createQuotaStore(getNamespace: NamespaceAccessor): QuotaStore {
   let remoteMounted = false
   const listeners = new Set<Listener>()
   let timer: ReturnType<typeof setInterval> | undefined
+  /** One-shot fast re-poll while the host's bootstrap refresh is in flight. */
+  let quickTimer: ReturnType<typeof setTimeout> | undefined
   let inFlight: Promise<void> | undefined
 
   const publish = (next: QuotaSnapshot | undefined, nextStatus?: QuotaStatus) => {
@@ -101,6 +105,22 @@ export function createQuotaStore(getNamespace: NamespaceAccessor): QuotaStore {
       .then((next) => {
         if (getNamespace()) remoteMounted = true
         publish(next, { kind: 'ready' })
+        // Rows still 'pending' mean the host's bootstrap refresh has not
+        // landed yet (fresh boot); re-poll in seconds instead of making the
+        // user wait a full interval for data that is already on its way.
+        if (
+          timer !== undefined &&
+          quickTimer === undefined &&
+          next.providers.some((row) => row.state === 'pending')
+        ) {
+          quickTimer = setTimeout(
+            () => {
+              quickTimer = undefined
+              void pull()
+            },
+            PENDING_REPOLL_MS,
+          )
+        }
       })
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error)
@@ -139,6 +159,8 @@ export function createQuotaStore(getNamespace: NamespaceAccessor): QuotaStore {
       return () => {
         if (timer !== undefined) clearInterval(timer)
         timer = undefined
+        if (quickTimer !== undefined) clearTimeout(quickTimer)
+        quickTimer = undefined
       }
     },
   }

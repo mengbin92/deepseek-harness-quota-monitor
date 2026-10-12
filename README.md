@@ -50,7 +50,7 @@ packages/
 数据流：
 
 ```
-供应商 API ──抓取──> Host ctx.quotaMonitor（定时器 + 手动刷新）
+供应商 API ──抓取──> Host ctx.quotaMonitor（启动首刷 + 定时器 + 手动刷新）
                           │  Typert Remote 命名空间 "quota"
                           │  （失败时客户端回退 Gateway HTTP wire 格式）
                           ▼

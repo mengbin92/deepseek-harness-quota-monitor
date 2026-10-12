@@ -120,9 +120,24 @@ export class QuotaMonitor extends TypertRemoteService {
       () => void this.refresh(),
       config.refreshIntervalMinutes * 60_000,
     )
-    // 'ready' fires once the composition finishes mounting; fetch immediately
-    // rather than waiting one whole interval for the first snapshot.
-    ;(ctx as unknown as { on(event: string, cb: () => void): void }).on('ready', () => void this.refresh())
+    // Bootstrap the first fetch instead of waiting a whole interval.
+    // cordis 4 has no 'ready' event — a listener registered for one never
+    // fires, which left every row 'pending' until a manual refresh. The
+    // timer plugin's one-shot setTimeout disposes with this fiber.
+    // The optional credentials service activates asynchronously after this
+    // fiber, so poll briefly for it before fetching — otherwise the first
+    // refresh lands as a wall of 'credential not configured' errors. After
+    // the deadline, refresh anyway: profiles without a credentials service
+    // should surface that honestly rather than stay pending forever.
+    const timerish = ctx as unknown as { setTimeout(cb: () => void, ms: number): void }
+    const boot = (attempt: number): void => {
+      if (this.ctx.get('credentials') !== undefined || attempt >= 40) {
+        void this.refresh()
+        return
+      }
+      timerish.setTimeout(() => boot(attempt + 1), 250)
+    }
+    timerish.setTimeout(() => boot(0), 250)
   }
 
   /**

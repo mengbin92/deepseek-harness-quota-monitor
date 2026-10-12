@@ -68,7 +68,7 @@ const snapshotInvocation = {
     typeSymbol: 'dsh-quota-monitor/types#QuotaSnapshot',
     create: quotaSnapshotSchema,
   },
-  sourceLocation: { file: 'packages/quota-monitor/src/index.ts', line: 142, column: 3 },
+  sourceLocation: { file: 'packages/quota-monitor/src/index.ts', line: 157, column: 3 },
 }
 
 const refreshInvocation = {
@@ -95,7 +95,7 @@ const refreshInvocation = {
     typeSymbol: 'dsh-quota-monitor/types#QuotaSnapshot',
     create: quotaSnapshotSchema,
   },
-  sourceLocation: { file: 'packages/quota-monitor/src/index.ts', line: 158, column: 3 },
+  sourceLocation: { file: 'packages/quota-monitor/src/index.ts', line: 173, column: 3 },
 }
 
 const serviceDoc = {

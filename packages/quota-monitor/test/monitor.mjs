@@ -6,7 +6,8 @@ import QuotaMonitor from '../lib/index.js'
 
 const makeMonitor = (providers, config = {}) => {
   const ctx = new Context()
-  ctx.setInterval = () => {} // cordis-plugin-timer stands in for this in real profiles
+  ctx.setInterval = () => {} // cordis-plugin-timer stands in for these in real profiles
+  ctx.setTimeout = () => {}
   const monitor = new QuotaMonitor(ctx, { refreshIntervalMinutes: 30, timeoutMs: 1000, providers, ...config })
   return monitor
 }
@@ -41,6 +42,7 @@ const makeMonitor = (providers, config = {}) => {
   // exercise warn rules through refresh with stub fetchers
   const ctx2 = new Context()
   ctx2.setInterval = () => {}
+  ctx2.setTimeout = () => {}
   const m2 = new QuotaMonitor(ctx2, {
     refreshIntervalMinutes: 30,
     timeoutMs: 1000,
@@ -72,6 +74,7 @@ const makeMonitor = (providers, config = {}) => {
 {
   const ctx = new Context()
   ctx.setInterval = () => {}
+  ctx.setTimeout = () => {}
   const m = new QuotaMonitor(ctx, {
     refreshIntervalMinutes: 30,
     timeoutMs: 1000,
@@ -101,6 +104,7 @@ const makeMonitor = (providers, config = {}) => {
 {
   const ctx = new Context()
   ctx.setInterval = () => {}
+  ctx.setTimeout = () => {}
   const m = new QuotaMonitor(ctx, {
     refreshIntervalMinutes: 30,
     timeoutMs: 5000,
